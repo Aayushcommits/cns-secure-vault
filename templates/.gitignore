@@ -1,0 +1,7 @@
+keys/
+vault/
+vault_backup/
+vault.db
+venv/
+__pycache__/
+*.pyc

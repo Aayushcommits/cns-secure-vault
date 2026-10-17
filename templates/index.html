@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CNS Secure Vault</title>
+<style>
+:root{--bg:#0f172a;--panel:#1e293b;--deep:#0b1220;--line:#334155;--text:#e2e8f0;--muted:#94a3b8;
+--accent:#38bdf8;--blue:#0284c7;--green:#16a34a;--red:#dc2626;--amber:#f59e0b;--grey:#475569}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px 48px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:1.6rem}
+main{max-width:1200px;margin:32px auto;padding:0 16px;display:grid;gap:24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 32px}
+.card h2{margin:0 0 20px;color:var(--accent);font-size:1.4rem}
+.flow{display:flex;align-items:center;justify-content:space-between;background:var(--deep);padding:18px;border-radius:12px;flex-wrap:wrap;gap:10px}
+.step{background:#334155;padding:10px 20px;border-radius:6px;transition:.25s}
+.step.active{background:var(--blue);box-shadow:0 0 0 2px var(--accent)}
+.arrow{color:var(--accent);font-size:1.4rem}
+.upload{display:flex;gap:18px;flex-wrap:wrap}
+.upload input[type=file]{flex:1;min-width:240px;background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:16px;color:var(--text)}
+button{border:0;border-radius:6px;padding:10px 16px;color:#fff;font-weight:600;cursor:pointer;font-size:.9rem}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.b-blue{background:var(--blue)}.b-green{background:var(--green)}.b-red{background:var(--red)}
+.b-grey{background:var(--grey)}.b-amber{background:#b45309}
+.upload button{padding:14px 22px;font-size:1rem}
+progress{width:100%;height:6px;display:none;margin-top:14px}
+table{width:100%;border-collapse:collapse}
+th{background:var(--deep);color:var(--muted);text-align:left;padding:14px 16px}
+td{padding:16px;border-bottom:1px solid var(--line);vertical-align:middle}
+.stored{font-family:monospace;color:var(--amber);font-size:.8rem;word-break:break-all}
+.badge{padding:5px 10px;border-radius:4px;font-size:.78rem;font-weight:700}
+.VERIFIED{background:var(--green)}.TAMPERED{background:var(--red)}.NOT\ CHECKED{background:var(--grey)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.empty{color:var(--muted);text-align:center;padding:28px}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--deep);border:1px solid var(--accent);padding:14px 20px;border-radius:8px;display:none;max-width:380px;z-index:20}
+#toast.err{border-color:var(--red)}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(2,6,23,.75);display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:min(900px,100%);max-height:90vh;display:flex;flex-direction:column}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;border-bottom:1px solid var(--line)}
+.modal-head h3{margin:0}
+.tabs{display:flex;gap:6px;padding:12px 24px 0}
+.tab{background:transparent;color:var(--muted);border-bottom:2px solid transparent;border-radius:0}
+.tab.on{color:var(--accent);border-color:var(--accent)}
+.modal-body{padding:20px 24px;overflow:auto}
+pre{background:var(--deep);padding:16px;border-radius:8px;overflow:auto;font-size:.8rem;line-height:1.5;margin:0;white-space:pre-wrap;word-break:break-all}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:8px 16px;font-size:.85rem;margin-bottom:16px}
+.kv span:nth-child(odd){color:var(--muted)}.kv span:nth-child(even){font-family:monospace;word-break:break-all}
+iframe,.modal img{width:100%;height:60vh;border:0;border-radius:8px;background:#fff;object-fit:contain}
+.checks{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.check{padding:8px 14px;border-radius:6px;background:var(--deep);font-size:.85rem}
+.ok{border-left:4px solid var(--green)}.bad{border-left:4px solid var(--red)}
+.note{color:var(--muted);font-size:.85rem;margin:10px 0 0}
+</style>
+</head>
+<body>
+<header><h1>🔒 CNS Secure Vault</h1><span>AES-256-GCM + RSA Digital Signatures</span></header>
+<main>
+  <section class="card">
+    <h2>System Flow Architecture</h2>
+    <div class="flow">
+      <div class="step" id="s1">1. Upload File</div><span class="arrow">➔</span>
+      <div class="step" id="s2">2. AES-256 Encryption</div><span class="arrow">➔</span>
+      <div class="step" id="s3">3. SHA-256 RSA Sign</div><span class="arrow">➔</span>
+      <div class="step" id="s4">4. Verify &amp; Decrypt</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Secure Upload File</h2>
+    <div class="upload">
+      <input type="file" id="file" aria-label="File to encrypt">
+      <button class="b-blue" id="uploadBtn">Encrypt &amp; Sign File</button>
+    </div>
+    <progress id="bar" max="100" value="0"></progress>
+  </section>
+
+  <section class="card">
+    <h2>Encrypted Files Storage Vault</h2>
+    <table>
+      <thead><tr><th>File ID</th><th>Original Filename</th><th>Stored Encrypted File</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head"><h3 id="mTitle"></h3><button class="b-grey" onclick="closeModal()">Close</button></div>
+    <div class="tabs">
+      <button class="tab on" data-t="enc">Encrypted view</button>
+      <button class="tab" data-t="dec">Decrypted view</button>
+      <button class="tab" data-t="meta">Crypto details</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let current = null, cache = {};
+
+function toast(msg, err=false){
+  const t=$('toast'); t.textContent=msg; t.className=err?'err':''; t.style.display='block';
+  clearTimeout(toast.t); toast.t=setTimeout(()=>t.style.display='none',4000);
+}
+function highlight(n){ document.querySelectorAll('.step').forEach((s,i)=>s.classList.toggle('active',i+1===n)); }
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+async function load(){
+  const files = await (await fetch('/api/files')).json();
+  $('rows').innerHTML = files.length ? files.map(f=>`
+    <tr>
+      <td><b>#${f.id}</b></td>
+      <td><b>${esc(f.name)}</b></td>
+      <td class="stored">${esc(f.stored)}</td>
+      <td><span class="badge ${f.status}">${f.status==='TAMPERED'?'⚠ ':f.status==='VERIFIED'?'✔ ':''}${f.status}</span></td>
+      <td class="actions">
+        <button class="b-blue" onclick="openModal(${f.id},'${esc(f.name)}','enc')">View</button>
+        <button class="b-green" onclick="downloadVerify(${f.id})">Download &amp; Verify</button>
+        <button class="b-red" onclick="attack(${f.id})">Simulate Attack</button>
+        <button class="b-amber" onclick="restore(${f.id})">Restore</button>
+        <button class="b-grey" onclick="del(${f.id})">Delete</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">No files yet. Upload one to see it encrypted.</td></tr>';
+}
+
+$('uploadBtn').onclick = () => {
+  const f = $('file').files[0];
+  if(!f) return toast('Choose a file first.', true);
+  const fd = new FormData(); fd.append('file', f);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST','/api/upload');
+  $('bar').style.display='block'; $('bar').value=0; highlight(1);
+  xhr.upload.onprogress = e => { if(e.lengthComputable) $('bar').value = e.loaded/e.total*100; };
+  xhr.onload = async () => {
+    const r = JSON.parse(xhr.responseText);
+    highlight(2); await wait(500); highlight(3); await wait(500);
+    $('bar').style.display='none'; highlight(0);
+    xhr.status===200 ? toast(r.message) : toast(r.error,true);
+    $('file').value=''; load();
+  };
+  xhr.onerror = () => toast('Upload failed.', true);
+  xhr.send(fd);
+};
+
+async function downloadVerify(id){
+  highlight(4);
+  const r = await fetch(`/api/download/${id}`);
+  if(!r.ok){ const e = await r.json(); toast(`❌ ${e.error} (signature ${e.signature_ok?'ok':'BAD'}, GCM tag ${e.gcm_ok?'ok':'BAD'})`, true); }
+  else {
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition')||''; const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = m?decodeURIComponent(m[1]):'file'; a.click();
+    toast('✅ Signature valid. File decrypted and downloaded.');
+  }
+  await wait(600); highlight(0); load();
+}
+
+async function attack(id){
+  const mode = prompt('Attack type:\n1 = flip one bit in ciphertext\n2 = truncate file\n3 = swap signature','1');
+  const map = {'1':'flip_byte','2':'truncate','3':'swap_signature'};
+  if(!map[mode]) return;
+  const r = await (await fetch(`/api/attack/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:map[mode]})})).json();
+  toast('😈 '+r.message+' Now click View or Download & Verify.'); load();
+}
+async function restore(id){ const r = await (await fetch(`/api/restore/${id}`,{method:'POST'})).json(); toast(r.message); load(); }
+async function del(id){ if(!confirm('Delete this file from the vault?')) return; await fetch(`/api/delete/${id}`,{method:'DELETE'}); load(); }
+
+/* ---------- modal ---------- */
+async function openModal(id,name,tab){
+  current = id; cache = {};
+  $('mTitle').textContent = `File #${id}: ${name}`;
+  $('overlay').style.display='flex';
+  cache.enc = await (await fetch(`/api/encrypted/${id}`)).json();
+  showTab(tab);
+}
+function closeModal(){ $('overlay').style.display='none'; load(); }
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.t));
+
+async function showTab(t){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  const body = $('mBody'), e = cache.enc;
+  if(t==='enc'){
+    body.innerHTML = `<p class="note" style="margin:0 0 12px">This is what is stored on the server. Without the AES key it is unreadable.</p>
+      <pre>${esc(e.hexdump)}</pre>${e.truncated?'<p class="note">Showing first 256 of '+e.encrypted_size+' bytes.</p>':''}
+      <h4>Base64 (first 256 bytes)</h4><pre>${esc(e.base64)}</pre>`;
+  } else if(t==='meta'){
+    body.innerHTML = `<div class="kv">
+      <span>Cipher</span><span>AES-256-GCM</span>
+      <span>Nonce (12 B)</span><span>${e.nonce}</span>
+      <span>Original size</span><span>${e.original_size} bytes</span>
+      <span>Encrypted size</span><span>${e.encrypted_size} bytes</span>
+      <span>Original SHA-256</span><span>${e.original_sha256}</span>
+      <span>Ciphertext SHA-256</span><span>${e.encrypted_sha256}</span>
+      <span>RSA-PSS signature</span><span>${e.signature}</span></div>`;
+  } else {
+    body.innerHTML = '<p class="note">Verifying signature and GCM tag…</p>'; highlight(4);
+    const v = await (await fetch(`/api/verify/${current}`)).json();
+    const checks = `<div class="checks">
+      <div class="check ${v.signature_ok?'ok':'bad'}">RSA signature: ${v.signature_ok?'valid':'INVALID'}</div>
+      <div class="check ${v.gcm_ok?'ok':'bad'}">AES-GCM auth tag: ${v.gcm_ok?'valid':'INVALID'}</div></div>`;
+    if(v.status!=='VERIFIED'){
+      body.innerHTML = checks + '<p>❌ Integrity check failed. Decryption refused: the vault never shows content it cannot trust.</p>';
+    } else {
+      const p = await (await fetch(`/api/preview/${current}`)).json();
+      let view = '';
+      if(p.kind==='text') view = `<pre>${esc(p.text)}</pre>`;
+      else if(p.kind==='media') view = p.mime.startsWith('image/') ? `<img src="${p.url}" alt="Decrypted file">` : `<iframe src="${p.url}"></iframe>`;
+      else view = `<p class="note">${esc(p.message)}</p>`;
+      body.innerHTML = checks + view;
+    }
+    await wait(400); highlight(0);
+  }
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+load();
+</script>
+</body>
+</html>
