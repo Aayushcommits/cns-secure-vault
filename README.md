@@ -57,9 +57,15 @@ Open http://127.0.0.1:5000 in your browser.
 AES and RSA keys are generated automatically on the first run and saved in keys/.
 
 Project structure
+
 cns_vault/
+
 ├── app.py              # Flask backend: encryption, signing, verification, API
+
 ├── templates/
+
 │   └── index.html      # Frontend
+
 ├── requirements.txt
+
 └── README.md
