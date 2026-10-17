@@ -5,6 +5,8 @@ A web app that stores files securely using AES-256-GCM encryption and RSA digita
 Built as a Cryptography and Network Security (CNS) project.
 
 ---------Features---------
+
+
 Encrypt and sign on upload: each file is encrypted with AES-256-GCM, then the encrypted bytes are signed with RSA-PSS (SHA-256).
 View encrypted content: hex dump, base64, nonce and SHA-256 hashes of the stored file, so you can see it is unreadable without the key.
 Verify before decrypting: the RSA signature and the AES-GCM authentication tag are checked separately. Content is only decrypted and previewed if both pass.
